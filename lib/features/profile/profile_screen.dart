@@ -93,6 +93,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final language = AppScope.of(context).language;
     final profile = _profile;
+    final me = AppScope.of(context).teacher;
+    final role = me?.role ?? 'teacher';
+    const roleLabels = {'teacher': 'शिक्षक', 'principal': 'प्रधानाध्यापक', 'student': 'छात्र', 'admin': 'व्यवस्थापक'};
 
     return Scaffold(
       backgroundColor: MedhaColors.bg,
@@ -112,10 +115,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(height: 12),
                           Text(profile.fullName, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: MedhaColors.ink)),
                           const SizedBox(height: 6),
-                          const Row(
+                          Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              PillChip(label: 'शिक्षक', dense: true, background: MedhaColors.primaryWash, foreground: MedhaColors.primary),
+                              PillChip(label: roleLabels[role] ?? role, dense: true, background: MedhaColors.primaryWash, foreground: MedhaColors.primary),
+                              if (role == 'student' && me?.gradeId != null) ...[
+                                const SizedBox(width: 6),
+                                Text('रोल नं. ${me?.rollNumber ?? '—'}', style: const TextStyle(fontSize: 12, color: MedhaColors.muted)),
+                              ],
                             ],
                           ),
                           if (profile.school != null) ...[
@@ -129,31 +136,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    MedhaCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('पढ़ाई की जानकारी', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: MedhaColors.muted)),
-                          const SizedBox(height: 11),
-                          if (profile.subjects.isEmpty)
-                            const Text('कोई विषय नहीं जोड़ा गया', style: TextStyle(fontSize: 13, color: MedhaColors.muted))
-                          else
-                            Wrap(
-                              spacing: 7,
-                              runSpacing: 7,
-                              children: profile.subjects
-                                  .map((s) => PillChip(
-                                        label: '${s.subjectName} · ${s.gradeLabel}',
-                                        dense: true,
-                                        background: s.isPrimary ? MedhaColors.primaryWash : MedhaColors.accentWash,
-                                        foreground: s.isPrimary ? MedhaColors.primary : MedhaColors.accentInk,
-                                      ))
-                                  .toList(),
-                            ),
-                        ],
+                    if (role == 'teacher') ...[
+                      const SizedBox(height: 16),
+                      MedhaCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('पढ़ाई की जानकारी', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: MedhaColors.muted)),
+                            const SizedBox(height: 11),
+                            if (profile.subjects.isEmpty)
+                              const Text('कोई विषय नहीं जोड़ा गया', style: TextStyle(fontSize: 13, color: MedhaColors.muted))
+                            else
+                              Wrap(
+                                spacing: 7,
+                                runSpacing: 7,
+                                children: profile.subjects
+                                    .map((s) => PillChip(
+                                          label: '${s.subjectName} · ${s.gradeLabel}',
+                                          dense: true,
+                                          background: s.isPrimary ? MedhaColors.primaryWash : MedhaColors.accentWash,
+                                          foreground: s.isPrimary ? MedhaColors.primary : MedhaColors.accentInk,
+                                        ))
+                                    .toList(),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 16),
                     MedhaCard(
                       padding: const EdgeInsets.symmetric(vertical: 4),

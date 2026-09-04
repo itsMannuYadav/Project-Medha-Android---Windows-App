@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/api_error.dart';
 import '../../core/api/fees_api.dart';
+import '../../core/api/principal_api.dart';
 import '../../core/api/profile_api.dart';
 import '../../core/api/roster_api.dart';
 import '../../core/models/attendance.dart';
@@ -44,6 +45,27 @@ class _FeesScreenState extends State<FeesScreen> {
     final self = AppScope.of(context, listen: false).teacher!;
     if (_isStudent) {
       await _loadPayments(self.id);
+      return;
+    }
+    // A principal picks from every approved student at the school (there's
+    // no "grades a principal teaches" concept, and /attendance -- what the
+    // teacher path below uses for its roster -- is teacher-only); a
+    // teacher picks a grade they teach, then that grade's roster.
+    if (_isPrincipal) {
+      try {
+        final students = await PrincipalApi.students();
+        if (!mounted) return;
+        setState(() {
+          _roster = students.map((s) => AttendanceStudent(studentId: s.id, fullName: s.fullName, rollNumber: s.rollNumber, status: null)).toList();
+          _loading = false;
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _error = 'लोड नहीं हो सका।';
+          _loading = false;
+        });
+      }
       return;
     }
     try {

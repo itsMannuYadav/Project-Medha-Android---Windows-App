@@ -2,11 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../features/onboarding/onboarding_screen.dart';
-import '../../shell/app_shell.dart';
 import '../api/auth_api.dart';
 import '../push/push_service.dart';
 import '../state/app_state.dart';
+import 'destination.dart';
 
 /// After any successful sign-in (password login, Google, or a
 /// PendingApproval "check status" call that turns out approved), fetch the
@@ -22,7 +21,7 @@ Future<void> completeLogin(BuildContext context, AppState appState) async {
   unawaited(PushService.registerDevice());
   if (!context.mounted) return;
   Navigator.of(context).pushAndRemoveUntil(
-    MaterialPageRoute(builder: (_) => me.needsOnboarding ? const OnboardingScreen() : const AppShell()),
+    MaterialPageRoute(builder: (_) => destinationFor(me)),
     (route) => false,
   );
 }

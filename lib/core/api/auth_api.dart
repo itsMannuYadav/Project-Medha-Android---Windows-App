@@ -50,6 +50,46 @@ class AuthApi {
         return TeacherMe.fromJson(res.data!);
       });
 
+  /// Phase 1 of student sign-up: no credential yet, just a claim against the
+  /// class register -- a teacher at the school approves it before phase 2
+  /// (`activateStudent`) can set a password. Unauthenticated endpoint.
+  static Future<void> registerStudent({
+    required String fullName,
+    required String schoolId,
+    required String gradeId,
+    required String rollNumber,
+  }) =>
+      apiCall(() async {
+        await _dio.post<void>('/student/register', data: {
+          'full_name': fullName,
+          'school_id': schoolId,
+          'grade_id': gradeId,
+          'roll_number': rollNumber,
+        });
+      });
+
+  /// Phase 2: re-proves identity against the now-approved row, then sets
+  /// email + password for the first time. Unauthenticated endpoint -- the
+  /// caller still needs to log in afterwards.
+  static Future<void> activateStudent({
+    required String schoolId,
+    required String gradeId,
+    required String rollNumber,
+    required String fullName,
+    required String email,
+    required String password,
+  }) =>
+      apiCall(() async {
+        await _dio.post<void>('/student/activate', data: {
+          'school_id': schoolId,
+          'grade_id': gradeId,
+          'roll_number': rollNumber,
+          'full_name': fullName,
+          'email': email,
+          'password': password,
+        });
+      });
+
   static Future<void> logout() => ApiClient.instance.logout();
 
   /// Attempts a silent session restore via the refresh cookie -- call once

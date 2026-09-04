@@ -3,14 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'core/api/auth_api.dart';
+import 'core/auth/destination.dart';
 import 'core/push/push_service.dart';
 import 'core/state/app_state.dart';
 import 'core/theme/medha_colors.dart';
 import 'core/theme/medha_theme.dart';
 import 'features/auth/login_screen.dart';
 import 'features/language/language_picker_screen.dart';
-import 'features/onboarding/onboarding_screen.dart';
-import 'shell/app_shell.dart';
 
 class MedhaApp extends StatefulWidget {
   const MedhaApp({super.key});
@@ -87,8 +86,7 @@ class _StartupGateState extends State<_StartupGate> {
           case AuthStatus.unknown:
             return const _SplashScreen();
           case AuthStatus.signedIn:
-            final teacher = widget.appState.teacher!;
-            return teacher.needsOnboarding ? const OnboardingScreen() : const AppShell();
+            return destinationFor(widget.appState.teacher!);
           case AuthStatus.signedOut:
             return LanguagePickerScreen(
               onDone: (lang) {

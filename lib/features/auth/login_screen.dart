@@ -12,6 +12,7 @@ import '../../core/widgets/medha_icon.dart';
 import '../language/language_picker_screen.dart';
 import 'pending_approval_screen.dart';
 import 'register_screen.dart';
+import 'student_activate_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -241,6 +242,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         GestureDetector(
                           onTap: _busy ? null : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen())),
                           child: const Text('रजिस्टर करें',
+                              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: MedhaColors.primary)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('छात्र स्वीकृत हो गए? ', style: TextStyle(fontSize: 13.5, color: MedhaColors.inkSoft)),
+                        GestureDetector(
+                          onTap: _busy ? null : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StudentActivateScreen())),
+                          child: const Text('खाता सक्रिय करें',
                               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: MedhaColors.primary)),
                         ),
                       ],

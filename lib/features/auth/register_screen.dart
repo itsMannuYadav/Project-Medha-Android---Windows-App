@@ -10,6 +10,7 @@ import '../../core/theme/medha_colors.dart';
 import '../../core/theme/medha_radii.dart';
 import '../../core/widgets/medha_icon.dart';
 import 'pending_approval_screen.dart';
+import 'student_register_screen.dart';
 
 enum _Role { teacher, principal, student }
 
@@ -82,10 +83,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _submit() async {
-    if (_role == _Role.student) {
-      setState(() => _error = 'छात्र रजिस्ट्रेशन जल्द आ रहा है — फिलहाल शिक्षक या प्रधानाध्यापक के रूप में जारी रखें।');
-      return;
-    }
     final fullName = _fullName.text.trim();
     final email = _email.text.trim();
     final password = _password.text;
@@ -158,7 +155,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   final selected = role == _role;
                   return Expanded(
                     child: GestureDetector(
-                      onTap: () => setState(() => _role = role),
+                      onTap: () {
+                        if (role == _Role.student) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const StudentRegisterScreen()),
+                          );
+                          return;
+                        }
+                        setState(() => _role = role);
+                      },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
                         padding: const EdgeInsets.symmetric(vertical: 9),
@@ -168,7 +173,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           borderRadius: BorderRadius.circular(MedhaRadii.pill),
                         ),
                         child: Text(
-                          role == _Role.student ? '${_roleLabels[role]!} (जल्द)' : _roleLabels[role]!,
+                          _roleLabels[role]!,
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,

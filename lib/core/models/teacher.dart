@@ -6,6 +6,8 @@ class TeacherMe {
     required this.role,
     required this.approvalStatus,
     required this.schoolId,
+    required this.gradeId,
+    required this.rollNumber,
     required this.onboardedAt,
   });
 
@@ -15,6 +17,9 @@ class TeacherMe {
   final String role;
   final String approvalStatus;
   final String? schoolId;
+  // Only set for role == "student": their own class and roll number.
+  final String? gradeId;
+  final String? rollNumber;
   final DateTime? onboardedAt;
 
   bool get needsOnboarding => onboardedAt == null;
@@ -26,6 +31,8 @@ class TeacherMe {
         role: j['role'] as String,
         approvalStatus: j['approval_status'] as String,
         schoolId: j['school_id'] as String?,
+        gradeId: j['grade_id'] as String?,
+        rollNumber: j['roll_number'] as String?,
         onboardedAt: j['onboarded_at'] == null ? null : DateTime.parse(j['onboarded_at'] as String),
       );
 }

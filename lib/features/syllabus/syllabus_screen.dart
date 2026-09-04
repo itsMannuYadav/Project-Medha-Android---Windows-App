@@ -5,6 +5,7 @@ import '../../core/api/profile_api.dart';
 import '../../core/api/reference_api.dart';
 import '../../core/models/profile.dart';
 import '../../core/models/reference.dart';
+import '../../core/state/app_state.dart';
 import '../../core/theme/medha_colors.dart';
 import '../../core/theme/medha_radii.dart';
 import '../../core/widgets/medha_card.dart';
@@ -37,19 +38,25 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
   }
 
   Future<void> _init() async {
+    final me = AppScope.of(context, listen: false).teacher;
     try {
-      final profile = await ProfileApi.get();
+      // A student browses their own fixed grade across every subject; a
+      // teacher/principal browses only the grade+subject pairs they teach
+      // (from their profile).
+      final options = me?.role == 'student'
+          ? await _studentOptions(me!.gradeId)
+          : (await ProfileApi.get()).subjects;
       if (!mounted) return;
-      if (profile.subjects.isEmpty) {
+      if (options.isEmpty) {
         setState(() {
-          _error = 'प्रोफ़ाइल में कोई विषय नहीं जुड़ा।';
+          _error = me?.role == 'student' ? 'आपकी कक्षा नहीं मिली।' : 'प्रोफ़ाइल में कोई विषय नहीं जुड़ा।';
           _loading = false;
         });
         return;
       }
       setState(() {
-        _options = profile.subjects;
-        _selected = profile.subjects.first;
+        _options = options;
+        _selected = options.first;
       });
       await _loadChapters();
     } on ApiError catch (e) {
@@ -59,6 +66,35 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
         _loading = false;
       });
     }
+  }
+
+  /// Every subject, paired with the student's own (fixed) grade -- there's
+  /// no "subjects a student takes" list on the backend, a student studies
+  /// the whole curriculum for their class.
+  Future<List<ProfileSubject>> _studentOptions(String? gradeId) async {
+    if (gradeId == null) return [];
+    final grades = await ReferenceApi.grades();
+    GradeRef? grade;
+    for (final g in grades) {
+      if (g.id == gradeId) {
+        grade = g;
+        break;
+      }
+    }
+    if (grade == null) return [];
+    final gradeLabel = grade.label;
+    final numericLevel = grade.numericLevel;
+    final subjects = await ReferenceApi.subjects();
+    return subjects
+        .map((s) => ProfileSubject(
+              subjectId: s.id,
+              subjectName: s.name,
+              gradeId: gradeId,
+              gradeLabel: gradeLabel,
+              numericLevel: numericLevel,
+              isPrimary: false,
+            ))
+        .toList();
   }
 
   Future<void> _loadChapters() async {

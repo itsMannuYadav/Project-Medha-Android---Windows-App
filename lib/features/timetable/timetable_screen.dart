@@ -46,17 +46,29 @@ class _TimetableScreenState extends State<TimetableScreen> {
   }
 
   Future<void> _init() async {
+    final me = AppScope.of(context, listen: false).teacher;
     try {
-      final results = await Future.wait([ProfileApi.get(), ReferenceApi.subjects()]);
-      final profile = results[0] as Profile;
-      final subjects = results[1] as List<SubjectRef>;
+      final subjects = await ReferenceApi.subjects();
+      if (!mounted) return;
+      setState(() => _subjects = subjects);
+
+      // A student has one fixed grade (no picker); a teacher/principal picks
+      // from the grades they actually teach, sourced from their profile.
+      if (me?.role == 'student') {
+        final gradeId = me?.gradeId;
+        if (gradeId != null) {
+          await _selectGrade(gradeId);
+        } else {
+          setState(() => _loading = false);
+        }
+        return;
+      }
+
+      final profile = await ProfileApi.get();
       final seen = <String>{};
       final grades = [for (final s in profile.subjects) if (seen.add(s.gradeId)) s];
       if (!mounted) return;
-      setState(() {
-        _subjects = subjects;
-        _gradeOptions = grades;
-      });
+      setState(() => _gradeOptions = grades);
       if (grades.isNotEmpty) {
         await _selectGrade(grades.first.gradeId);
       } else {

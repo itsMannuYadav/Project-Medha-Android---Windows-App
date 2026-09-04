@@ -9,6 +9,8 @@ class MedhaNavItem {
   final String label;
 }
 
+/// Teacher's 5 tabs -- the only shell that existed before student/principal
+/// shells were added, kept as the default so nothing else has to change.
 const medhaNavItems = [
   MedhaNavItem('home', 'होम'),
   MedhaNavItem('modules', 'मॉड्यूल'),
@@ -17,14 +19,21 @@ const medhaNavItems = [
   MedhaNavItem('user', 'प्रोफ़ाइल'),
 ];
 
-/// The 5-tab bottom bar shared by Home, Modules, Tools, Attendance and
-/// Profile — identical everywhere except which tab is active, matching the
-/// canvas mockups.
+/// The 5-tab bottom bar shared by every shell (teacher/student/principal)
+/// — identical everywhere except which items and which tab is active,
+/// matching the canvas mockups. Defaults to the teacher's own tabs so
+/// existing call sites don't need to change.
 class MedhaBottomNav extends StatelessWidget {
-  const MedhaBottomNav({super.key, required this.currentIndex, required this.onChanged});
+  const MedhaBottomNav({
+    super.key,
+    required this.currentIndex,
+    required this.onChanged,
+    this.items = medhaNavItems,
+  });
 
   final int currentIndex;
   final ValueChanged<int> onChanged;
+  final List<MedhaNavItem> items;
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +46,8 @@ class MedhaBottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Row(
-          children: List.generate(medhaNavItems.length, (i) {
-            final item = medhaNavItems[i];
+          children: List.generate(items.length, (i) {
+            final item = items[i];
             final active = i == currentIndex;
             return Expanded(
               child: InkWell(
