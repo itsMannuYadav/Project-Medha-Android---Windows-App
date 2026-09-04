@@ -73,7 +73,10 @@ class _LoginScreenState extends State<LoginScreen> {
         );
         return;
       }
-      setState(() => _error = e.isRateLimited ? e.message : 'गलत ईमेल या पासवर्ड।');
+      // Only a genuine 401 from /auth/login means "wrong credentials" --
+      // anything else (no connection, timeout, 5xx...) has its own honest
+      // message from ApiError and must not be relabelled as a bad password.
+      setState(() => _error = e.statusCode == 401 ? 'गलत ईमेल या पासवर्ड।' : e.message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

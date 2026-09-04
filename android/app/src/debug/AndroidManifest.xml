@@ -4,4 +4,13 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Debug builds only: the dev backend (see ApiConfig) is plain HTTP
+         (10.0.2.2 emulator alias, or a LAN IP for a real device), and Android
+         blocks cleartext traffic by default once targetSdk is 28 or above,
+         so without this every request silently fails with a connection
+         error (which, before the login-screen fix, was misreported as
+         "wrong password"). Release builds (this override doesn't merge into
+         them) stay strict and should point at the HTTPS Render backend. -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>
