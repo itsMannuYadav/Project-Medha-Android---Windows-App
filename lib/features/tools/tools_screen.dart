@@ -4,14 +4,19 @@ import '../../core/theme/medha_colors.dart';
 import '../../core/widgets/medha_card.dart';
 import '../../core/widgets/medha_icon.dart';
 import '../fees/fees_screen.dart';
+import '../generation/create_generation_screen.dart';
+import '../generation/generations_list_screen.dart';
 import '../homework/homework_screen.dart';
 import '../library/library_screen.dart';
 import '../report_card/report_card_screen.dart';
+import '../students/students_screen.dart';
 import '../syllabus/syllabus_screen.dart';
 import '../timetable/timetable_screen.dart';
 import 'class_timer_screen.dart';
 import 'group_maker_screen.dart';
 import 'name_picker_screen.dart';
+import 'pdf_qa_screen.dart';
+import 'quick_mock_screen.dart';
 import 'translate_simplify_screen.dart';
 
 class _Tool {
@@ -28,19 +33,24 @@ final _dailyTools = [
   _Tool('users_group', 'ग्रुप बनाएं', 'छात्रों के समूह तुरंत बनाएं', false, builder: (_) => const GroupMakerScreen()),
   _Tool('dice', 'नाम चुनें', 'बेतरतीब ढंग से छात्र चुनें', true, builder: (_) => const NamePickerScreen()),
   _Tool('translate', 'अनुवाद/सरल करें', 'कठिन पाठ को सरल भाषा में', false, builder: (_) => const TranslateSimplifyScreen()),
-  _Tool('file_question', 'PDF से सवाल-जवाब', 'कोई भी दस्तावेज़ अपलोड करें', true),
-  _Tool('help_circle', 'क्विज़ बनाएं', 'पल भर में प्रश्न-पत्र', false),
-  _Tool('clipboard', 'पाठ योजना', 'पूरे सप्ताह की योजना', true),
-  _Tool('form', 'फॉर्म किट', 'सूचना-पत्र, अनुरोध पत्र', false),
+  _Tool('file_question', 'PDF से सवाल-जवाब', 'पाठ पेस्ट कर उत्तर खोजें', true, builder: (_) => const PdfQaScreen()),
+  _Tool('form', 'त्वरित मॉक टेस्ट', 'तुरंत अभ्यास पेपर', false, builder: (_) => const QuickMockScreen()),
+  _Tool('help_circle', 'क्विज़ बनाएं', 'पल भर में प्रश्न', true, builder: (_) => const CreateGenerationScreen(type: 'quiz')),
+  _Tool('clipboard', 'पाठ योजना', 'पूरे सप्ताह की योजना', false, builder: (_) => const CreateGenerationScreen(type: 'lesson_plan')),
+  _Tool('file_question', 'प्रश्न-पत्र', 'परीक्षा के लिए पेपर', true, builder: (_) => const CreateGenerationScreen(type: 'question_paper')),
+  _Tool('presentation', 'प्रस्तुति', 'स्लाइड डेक बनाएं', false, builder: (_) => const CreateGenerationScreen(type: 'presentation')),
+  _Tool('book', 'AI नोट्स', 'अध्याय के नोट्स बनाएं', true, builder: (_) => const CreateGenerationScreen(type: 'notes')),
+  _Tool('modules', 'जनरेशन इतिहास', 'बनाई गई सामग्री देखें', false, builder: (_) => const GenerationsListScreen()),
 ];
 
 final _schoolTools = [
-  _Tool('report', 'होमवर्क', 'दें और प्रगति देखें', true, builder: (_) => const HomeworkScreen()),
-  _Tool('grid_calendar', 'समय सारणी', 'साप्ताहिक कक्षा सूची', false, builder: (_) => const TimetableScreen()),
-  _Tool('report', 'रिपोर्ट कार्ड', 'सत्र के अंक', true, builder: (_) => const ReportCardScreen()),
-  _Tool('book', 'ई-लाइब्रेरी', 'पढ़ने की सामग्री', false, builder: (_) => const LibraryScreen()),
-  _Tool('book', 'पाठ्यक्रम', 'अध्याय व विषय-वस्तु', true, builder: (_) => const SyllabusScreen()),
-  _Tool('receipt', 'फीस', 'भुगतान का रिकॉर्ड', false, builder: (_) => const FeesScreen()),
+  _Tool('users_group', 'छात्र', 'आवेदन स्वीकृत करें', true, builder: (_) => const StudentsScreen()),
+  _Tool('report', 'होमवर्क', 'दें और प्रगति देखें', false, builder: (_) => const HomeworkScreen()),
+  _Tool('grid_calendar', 'समय सारणी', 'साप्ताहिक कक्षा सूची', true, builder: (_) => const TimetableScreen()),
+  _Tool('report', 'रिपोर्ट कार्ड', 'सत्र के अंक', false, builder: (_) => const ReportCardScreen()),
+  _Tool('book', 'ई-लाइब्रेरी', 'पढ़ने की सामग्री', true, builder: (_) => const LibraryScreen()),
+  _Tool('book', 'पाठ्यक्रम', 'अध्याय व विषय-वस्तु', false, builder: (_) => const SyllabusScreen()),
+  _Tool('receipt', 'फीस', 'भुगतान का रिकॉर्ड', true, builder: (_) => const FeesScreen()),
 ];
 
 class ToolsScreen extends StatelessWidget {
@@ -72,7 +82,7 @@ class ToolsScreen extends StatelessWidget {
           _ToolGrid(tools: _schoolTools),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 18),
-            child: Text('रोज़मर्रा के टूल्स', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: MedhaColors.muted)),
+            child: Text('AI व रोज़मर्रा के टूल्स', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: MedhaColors.muted)),
           ),
           _ToolGrid(tools: _dailyTools),
         ],
@@ -102,7 +112,7 @@ class _ToolGrid extends StatelessWidget {
               Navigator.of(context).push(MaterialPageRoute(builder: t.builder!));
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${t.title} — बैकएंड जुड़ने पर उपलब्ध होगा'), duration: const Duration(seconds: 2)),
+                SnackBar(content: Text('${t.title} — जल्द उपलब्ध होगा'), duration: const Duration(seconds: 2)),
               );
             }
           },

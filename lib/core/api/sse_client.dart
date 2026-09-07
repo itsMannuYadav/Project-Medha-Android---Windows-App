@@ -2,19 +2,15 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
-/// Streams a POST-based SSE endpoint (`/chat/*`, `/tutor/*`, `/english/*`) --
-/// these are POST requests returning `text/event-stream`, so the browser
-/// `EventSource` API (GET-only, no custom headers) doesn't apply; this reads
-/// the raw byte stream and parses `event:`/`data:` frames by hand, the same
-/// approach the Next.js client uses (`shiksha_sathi/lib/sse.ts`).
-///
-/// Frames are blank-line-delimited (`\n\n`) and sse-starlette emits CRLF, so
-/// both are normalized before splitting.
+/// Streams a POST-based SSE endpoint (`/ask/*`, `/tutor/*`, `/english/*`,
+/// `/generate/*`, `/speech/converse`) — POST returning `text/event-stream`.
 Future<void> streamSse({
   required Dio dio,
   required String path,
   required Map<String, dynamic> body,
   required void Function(String text) onToken,
+  void Function(String stage, int done, int total)? onProgress,
+  void Function(String b64, {int? seq, String? mime})? onAudio,
   required void Function(Map<String, dynamic> data) onDone,
   required void Function(String message) onError,
 }) async {
@@ -23,7 +19,11 @@ Future<void> streamSse({
     response = await dio.post<ResponseBody>(
       path,
       data: body,
-      options: Options(responseType: ResponseType.stream, headers: {'Accept': 'text/event-stream'}),
+      options: Options(
+        responseType: ResponseType.stream,
+        headers: {'Accept': 'text/event-stream'},
+        receiveTimeout: const Duration(minutes: 5),
+      ),
     );
   } on DioException catch (e) {
     onError(_dioErrorMessage(e));
@@ -63,6 +63,18 @@ Future<void> streamSse({
         switch (event) {
           case 'token':
             onToken(data['text'] as String? ?? '');
+          case 'progress':
+            onProgress?.call(
+              data['stage'] as String? ?? '',
+              (data['done'] as num?)?.toInt() ?? 0,
+              (data['total'] as num?)?.toInt() ?? 0,
+            );
+          case 'audio':
+            onAudio?.call(
+              data['b64'] as String? ?? '',
+              seq: (data['seq'] as num?)?.toInt(),
+              mime: data['mime'] as String?,
+            );
           case 'done':
             sawTerminal = true;
             onDone(data);

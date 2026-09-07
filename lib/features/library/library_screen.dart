@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/api/api_error.dart';
+import '../../core/api/download_api.dart';
 import '../../core/api/library_api.dart';
 import '../../core/api/reference_api.dart';
+import '../../core/data/library_books.dart';
 import '../../core/models/library_item.dart';
+import '../../core/models/library_presentation.dart';
 import '../../core/models/reference.dart';
 import '../../core/state/app_state.dart';
 import '../../core/theme/medha_colors.dart';
@@ -18,19 +22,27 @@ class LibraryScreen extends StatefulWidget {
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen> {
+class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProviderStateMixin {
+  late final TabController _tabs;
   List<LibraryItem> _items = [];
+  List<LibraryPresentationItem> _presentations = [];
   List<GradeRef> _grades = [];
   List<SubjectRef> _subjects = [];
   String? _gradeFilter;
-  String? _subjectFilter;
   bool _loading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _tabs = TabController(length: 3, vsync: this);
     _init();
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
   }
 
   Future<void> _init() async {
@@ -41,9 +53,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         _grades = results[0] as List<GradeRef>;
         _subjects = results[1] as List<SubjectRef>;
       });
-    } catch (_) {
-      // filters just won't populate; the list itself still loads
-    }
+    } catch (_) {}
     await _load();
   }
 
@@ -53,10 +63,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
       _error = null;
     });
     try {
-      final items = await LibraryApi.list(gradeId: _gradeFilter, subjectId: _subjectFilter);
+      final results = await Future.wait([
+        LibraryApi.list(gradeId: _gradeFilter),
+        LibraryApi.presentations(gradeId: _gradeFilter),
+      ]);
       if (!mounted) return;
       setState(() {
-        _items = items;
+        _items = results[0] as List<LibraryItem>;
+        _presentations = results[1] as List<LibraryPresentationItem>;
         _loading = false;
       });
     } on ApiError catch (e) {
@@ -87,6 +101,26 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
+  Future<void> _openUrl(String url) async {
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('लिंक कॉपी हुआ: $url'), duration: const Duration(seconds: 3)),
+    );
+  }
+
+  Future<void> _openPresentation(LibraryPresentationItem p) async {
+    try {
+      final detail = await LibraryApi.presentation(p.id);
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => _PresentationDetailScreen(detail: detail)),
+      );
+    } on ApiError catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final role = AppScope.of(context).teacher?.role;
@@ -94,7 +128,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
     return Scaffold(
       backgroundColor: MedhaColors.bg,
-      appBar: AppBar(title: const Text('ई-लाइब्रेरी')),
+      appBar: AppBar(
+        title: const Text('ई-लाइब्रेरी'),
+        bottom: TabBar(
+          controller: _tabs,
+          labelColor: MedhaColors.primary,
+          unselectedLabelColor: MedhaColors.muted,
+          indicatorColor: MedhaColors.primary,
+          tabs: const [
+            Tab(text: 'प्रस्तुतियाँ'),
+            Tab(text: 'पुस्तकें'),
+            Tab(text: 'लिंक'),
+          ],
+        ),
+      ),
       floatingActionButton: canManage
           ? FloatingActionButton(backgroundColor: MedhaColors.primary, onPressed: _openAdd, child: const MedhaIcon('plus', size: 20, color: Colors.white))
           : null,
@@ -125,62 +172,210 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
             ),
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _load,
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator(color: MedhaColors.primary))
-                  : _error != null
-                      ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, style: const TextStyle(color: MedhaColors.danger))))
-                      : _items.isEmpty
-                          ? ListView(children: const [
-                              Padding(padding: EdgeInsets.only(top: 100), child: Center(child: Text('अभी कोई सामग्री नहीं है', style: TextStyle(color: MedhaColors.muted)))),
-                            ])
-                          : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-                              itemCount: _items.length,
-                              separatorBuilder: (_, _) => const SizedBox(height: 10),
-                              itemBuilder: (context, i) {
-                                final item = _items[i];
-                                return MedhaCard(
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        width: 38,
-                                        height: 38,
-                                        decoration: BoxDecoration(color: MedhaColors.primaryWash, borderRadius: BorderRadius.circular(10)),
-                                        child: const Center(child: MedhaIcon('book', size: 18, color: MedhaColors.primary)),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: MedhaColors.primary))
+                : _error != null
+                    ? Center(child: Text(_error!, style: const TextStyle(color: MedhaColors.danger)))
+                    : TabBarView(
+                        controller: _tabs,
+                        children: [
+                          RefreshIndicator(
+                            onRefresh: _load,
+                            child: _presentations.isEmpty
+                                ? ListView(children: const [
+                                    Padding(padding: EdgeInsets.only(top: 100), child: Center(child: Text('कोई प्रस्तुति नहीं', style: TextStyle(color: MedhaColors.muted)))),
+                                  ])
+                                : ListView.separated(
+                                    padding: const EdgeInsets.all(16),
+                                    itemCount: _presentations.length,
+                                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                                    itemBuilder: (context, i) {
+                                      final p = _presentations[i];
+                                      return MedhaCard(
+                                        onTap: () => _openPresentation(p),
+                                        child: Row(
                                           children: [
-                                            Text(item.title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
-                                            if (item.description != null) ...[
-                                              const SizedBox(height: 3),
-                                              Text(item.description!, style: const TextStyle(fontSize: 12, color: MedhaColors.inkSoft)),
-                                            ],
-                                            const SizedBox(height: 6),
-                                            Wrap(spacing: 6, children: [
-                                              if (item.gradeLabel != null) PillChip(label: item.gradeLabel!, dense: true, background: MedhaColors.primaryWash, foreground: MedhaColors.primary),
-                                              if (item.subjectName != null) PillChip(label: item.subjectName!, dense: true, background: MedhaColors.surface2, foreground: MedhaColors.inkSoft),
-                                            ]),
+                                            Container(
+                                              width: 38,
+                                              height: 38,
+                                              decoration: BoxDecoration(color: MedhaColors.accentWash, borderRadius: BorderRadius.circular(10)),
+                                              child: const Center(child: MedhaIcon('presentation', size: 18, color: MedhaColors.accentInk)),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(p.title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+                                                  const SizedBox(height: 3),
+                                                  Text(
+                                                    [
+                                                      if (p.gradeLabel != null) p.gradeLabel!,
+                                                      if (p.subjectName != null) p.subjectName!,
+                                                      if (p.slideCount != null) '${p.slideCount} स्लाइड',
+                                                    ].join(' · '),
+                                                    style: const TextStyle(fontSize: 11.5, color: MedhaColors.muted),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const MedhaIcon('chevron_right', size: 15, color: MedhaColors.muted),
                                           ],
                                         ),
-                                      ),
-                                      if (canManage)
-                                        IconButton(
-                                          icon: const Icon(Icons.delete_outline, size: 18, color: MedhaColors.muted),
-                                          onPressed: () => _delete(item),
-                                        ),
-                                    ],
+                                      );
+                                    },
                                   ),
-                                );
-                              },
-                            ),
-            ),
+                          ),
+                          ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: libraryBooks.length,
+                            separatorBuilder: (_, _) => const SizedBox(height: 10),
+                            itemBuilder: (context, i) {
+                              final b = libraryBooks[i];
+                              return MedhaCard(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(b.title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+                                    const SizedBox(height: 3),
+                                    Text('${b.author} · ${b.classLabel} · ${b.pages} पृष्ठ', style: const TextStyle(fontSize: 11.5, color: MedhaColors.muted)),
+                                    const SizedBox(height: 6),
+                                    Text(b.blurb, style: const TextStyle(fontSize: 12.5, height: 1.4, color: MedhaColors.inkSoft)),
+                                    const SizedBox(height: 8),
+                                    PillChip(label: b.category, dense: true),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          RefreshIndicator(
+                            onRefresh: _load,
+                            child: _items.isEmpty
+                                ? ListView(children: const [
+                                    Padding(padding: EdgeInsets.only(top: 100), child: Center(child: Text('अभी कोई लिंक नहीं', style: TextStyle(color: MedhaColors.muted)))),
+                                  ])
+                                : ListView.separated(
+                                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
+                                    itemCount: _items.length,
+                                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                                    itemBuilder: (context, i) {
+                                      final item = _items[i];
+                                      return MedhaCard(
+                                        onTap: () => _openUrl(item.url),
+                                        child: Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Container(
+                                              width: 38,
+                                              height: 38,
+                                              decoration: BoxDecoration(color: MedhaColors.primaryWash, borderRadius: BorderRadius.circular(10)),
+                                              child: const Center(child: MedhaIcon('book', size: 18, color: MedhaColors.primary)),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(item.title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+                                                  if (item.description != null) ...[
+                                                    const SizedBox(height: 3),
+                                                    Text(item.description!, style: const TextStyle(fontSize: 12, color: MedhaColors.inkSoft)),
+                                                  ],
+                                                  const SizedBox(height: 6),
+                                                  Wrap(spacing: 6, children: [
+                                                    if (item.gradeLabel != null) PillChip(label: item.gradeLabel!, dense: true, background: MedhaColors.primaryWash, foreground: MedhaColors.primary),
+                                                    if (item.subjectName != null) PillChip(label: item.subjectName!, dense: true, background: MedhaColors.surface2, foreground: MedhaColors.inkSoft),
+                                                  ]),
+                                                ],
+                                              ),
+                                            ),
+                                            if (canManage)
+                                              IconButton(
+                                                icon: const Icon(Icons.delete_outline, size: 18, color: MedhaColors.muted),
+                                                onPressed: () => _delete(item),
+                                              ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ],
+                      ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PresentationDetailScreen extends StatelessWidget {
+  const _PresentationDetailScreen({required this.detail});
+  final LibraryPresentationDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final slides = (detail.spec?['slides'] as List?) ?? const [];
+    return Scaffold(
+      backgroundColor: MedhaColors.bg,
+      appBar: AppBar(
+        title: Text(detail.title),
+        actions: [
+          IconButton(
+            tooltip: 'PPTX डाउनलोड',
+            onPressed: () async {
+              try {
+                await DownloadApi.libraryPresentationPptx(detail.id);
+              } catch (_) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('डाउनलोड नहीं हो सका')));
+                }
+              }
+            },
+            icon: const MedhaIcon('download', color: MedhaColors.primary),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (detail.description != null) ...[
+            Text(detail.description!, style: const TextStyle(fontSize: 13.5, color: MedhaColors.inkSoft, height: 1.45)),
+            const SizedBox(height: 14),
+          ],
+          Text(
+            [
+              if (detail.gradeLabel != null) detail.gradeLabel!,
+              if (detail.subjectName != null) detail.subjectName!,
+              if (detail.slideCount != null) '${detail.slideCount} स्लाइड',
+            ].join(' · '),
+            style: const TextStyle(fontSize: 12, color: MedhaColors.muted),
+          ),
+          const SizedBox(height: 16),
+          for (var i = 0; i < slides.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: MedhaCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('स्लाइड ${i + 1}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: MedhaColors.primary)),
+                    const SizedBox(height: 6),
+                    Text('${(slides[i] as Map)['heading'] ?? ''}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    if ((slides[i] as Map)['bullets'] is List) ...[
+                      const SizedBox(height: 8),
+                      for (final b in ((slides[i] as Map)['bullets'] as List))
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Text('• $b', style: const TextStyle(fontSize: 13, height: 1.4)),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          if (slides.isEmpty)
+            const Text('इस प्रस्तुति का पूर्वावलोकन उपलब्ध नहीं', style: TextStyle(color: MedhaColors.muted)),
         ],
       ),
     );

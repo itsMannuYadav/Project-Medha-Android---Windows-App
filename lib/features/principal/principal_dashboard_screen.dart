@@ -134,14 +134,46 @@ class _PrincipalDashboardScreenState extends State<PrincipalDashboardScreen> {
                           const SizedBox(height: 10),
                           MedhaCard(
                             padding: const EdgeInsets.all(13),
-                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
                             child: Row(
                               children: [
                                 Container(
                                   width: 38,
                                   height: 38,
                                   decoration: BoxDecoration(color: MedhaColors.accentWash, borderRadius: BorderRadius.circular(10)),
-                                  child: const Center(child: MedhaIcon('megaphone', size: 18, color: MedhaColors.accentInk)),
+                                  child: const Center(child: MedhaIcon('user', size: 18, color: MedhaColors.accentInk)),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text('लंबित छात्र', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                      Text(
+                                        _stats == null
+                                            ? ''
+                                            : _stats!.pendingStudents == 0
+                                                ? 'कोई लंबित आवेदन नहीं'
+                                                : '${_stats!.pendingStudents} — शिक्षक स्वीकृत करेंगे',
+                                        style: const TextStyle(fontSize: 10.5, color: MedhaColors.muted),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          MedhaCard(
+                            padding: const EdgeInsets.all(13),
+                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(color: MedhaColors.primaryWash, borderRadius: BorderRadius.circular(10)),
+                                  child: const Center(child: MedhaIcon('megaphone', size: 18, color: MedhaColors.primary)),
                                 ),
                                 const SizedBox(width: 10),
                                 const Expanded(

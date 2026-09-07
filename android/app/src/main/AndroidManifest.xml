@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- Android 13+ requires this to be requested at runtime before a
          notification can show. FirebaseMessaging.requestPermission()
          (see core/push/push_service.dart) triggers that prompt. -->

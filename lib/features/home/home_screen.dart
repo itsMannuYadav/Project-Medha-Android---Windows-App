@@ -13,7 +13,9 @@ import '../../core/widgets/avatar_initials.dart';
 import '../../core/widgets/medha_card.dart';
 import '../../core/widgets/medha_icon.dart';
 import '../../core/widgets/notification_bell.dart';
+import '../generation/create_generation_screen.dart';
 import '../modules/module_detail_screen.dart';
+import '../voice/voice_chat_panel.dart';
 
 enum _TurnKind { teacher, assistant, artifact }
 
@@ -252,7 +254,15 @@ class _HomeScreenState extends State<HomeScreen> {
     _scrollToEnd();
   }
 
-  void _notReady(String label) => _showError('$label — यह सुविधा जल्द उपलब्ध होगी');
+  void _openGeneration(String type) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => CreateGenerationScreen(type: type)));
+  }
+
+  Future<void> _openVoice() async {
+    final id = await _ensureSession();
+    if (id == null || !mounted) return;
+    await VoiceChatPanel.open(context, sessionId: id, kind: VoiceConverseKind.teacher);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -279,9 +289,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   Expanded(
                     child: inChat
                         ? _ChatThread(scroll: _scroll, turns: _turns, onArtifactTap: (id) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModuleDetailScreen(moduleId: id))))
-                        : _EmptyState(onQuickAction: _generateArtifact, onNotReady: _notReady),
+                        : _EmptyState(
+                            onQuickAction: _generateArtifact,
+                            onGenerate: _openGeneration,
+                            onVoice: _openVoice,
+                          ),
                   ),
-                  _Composer(controller: _composer, busy: _sending, onSend: _ask),
+                  _Composer(
+                    controller: _composer,
+                    busy: _sending,
+                    onSend: _ask,
+                    onMic: () => dictateInto(context, _composer),
+                  ),
                 ],
               ),
       ),
@@ -420,9 +439,10 @@ class _ContextPill extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onQuickAction, required this.onNotReady});
+  const _EmptyState({required this.onQuickAction, required this.onGenerate, required this.onVoice});
   final void Function(String artifactType) onQuickAction;
-  final void Function(String label) onNotReady;
+  final void Function(String type) onGenerate;
+  final VoidCallback onVoice;
 
   @override
   Widget build(BuildContext context) {
@@ -436,7 +456,16 @@ class _EmptyState extends StatelessWidget {
           Text('नमस्ते, $name जी', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: MedhaColors.ink)),
           const SizedBox(height: 4),
           const Text('आज कौन सा टॉपिक पढ़ाना है?', style: TextStyle(fontSize: 14, color: MedhaColors.inkSoft)),
-          const SizedBox(height: 26),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onVoice,
+              icon: const MedhaIcon('mic', size: 16, color: MedhaColors.primary),
+              label: const Text('आवाज़ से बात करें'),
+            ),
+          ),
+          const SizedBox(height: 18),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -445,8 +474,8 @@ class _EmptyState extends StatelessWidget {
             crossAxisSpacing: 12,
             childAspectRatio: 2.6,
             children: [
-              _actionCard(icon: 'presentation', title: 'पीपीटी बनाएं', subtitle: 'कक्षा के लिए स्लाइड्स', blue: true, onTap: () => onNotReady('पीपीटी')),
-              _actionCard(icon: 'mindmap', title: 'माइंडमैप', subtitle: 'विषय का सार', blue: false, onTap: () => onNotReady('माइंडमैप')),
+              _actionCard(icon: 'presentation', title: 'पीपीटी बनाएं', subtitle: 'कक्षा के लिए स्लाइड्स', blue: true, onTap: () => onGenerate('presentation')),
+              _actionCard(icon: 'clipboard', title: 'पाठ योजना', subtitle: 'पीरियड-वार योजना', blue: false, onTap: () => onGenerate('lesson_plan')),
               _actionCard(icon: 'help_circle', title: 'प्रश्नोत्तरी', subtitle: 'पूछने के लिए सवाल', blue: true, onTap: () => onQuickAction('quiz')),
               _actionCard(icon: 'activity', title: 'कक्षा गतिविधि', subtitle: 'बिना सामग्री के', blue: false, onTap: () => onQuickAction('activity')),
             ],
@@ -589,10 +618,11 @@ class _ArtifactTurnCard extends StatelessWidget {
 }
 
 class _Composer extends StatelessWidget {
-  const _Composer({required this.controller, required this.busy, required this.onSend});
+  const _Composer({required this.controller, required this.busy, required this.onSend, this.onMic});
   final TextEditingController controller;
   final bool busy;
   final ValueChanged<String> onSend;
+  final VoidCallback? onMic;
 
   @override
   Widget build(BuildContext context) {
@@ -620,7 +650,7 @@ class _Composer extends StatelessWidget {
                 ),
               ),
             ),
-            IconButton(icon: const MedhaIcon('mic', size: 18, color: MedhaColors.inkSoft), onPressed: null),
+            IconButton(icon: const MedhaIcon('mic', size: 18, color: MedhaColors.inkSoft), onPressed: busy ? null : onMic),
             Container(
               width: 36,
               height: 36,

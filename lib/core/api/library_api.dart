@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../models/library_item.dart';
+import '../models/library_presentation.dart';
 import 'api_client.dart';
 
 class LibraryApi {
@@ -8,7 +9,7 @@ class LibraryApi {
   static Dio get _dio => ApiClient.instance.dio;
 
   static Future<List<LibraryItem>> list({String? gradeId, String? subjectId}) => apiCall(() async {
-        final res = await _dio.get<List<dynamic>>('/library', queryParameters: {
+        final res = await _dio.get<List<dynamic>>('/library/items', queryParameters: {
           'grade_id': ?gradeId,
           'subject_id': ?subjectId,
         });
@@ -23,7 +24,7 @@ class LibraryApi {
     String? subjectId,
   }) =>
       apiCall(() async {
-        final res = await _dio.post<Map<String, dynamic>>('/library', data: {
+        final res = await _dio.post<Map<String, dynamic>>('/library/items', data: {
           'title': title,
           'description': ?description,
           'url': url,
@@ -34,6 +35,27 @@ class LibraryApi {
       });
 
   static Future<void> delete(String id) => apiCall(() async {
-        await _dio.delete<void>('/library/$id');
+        await _dio.delete<void>('/library/items/$id');
+      });
+
+  static Future<List<LibraryPresentationItem>> presentations({
+    String? gradeId,
+    String? subjectId,
+    String? q,
+  }) =>
+      apiCall(() async {
+        final res = await _dio.get<List<dynamic>>('/library/presentations', queryParameters: {
+          'grade_id': ?gradeId,
+          'subject_id': ?subjectId,
+          'q': ?q,
+        });
+        return res.data!
+            .map((p) => LibraryPresentationItem.fromJson(p as Map<String, dynamic>))
+            .toList();
+      });
+
+  static Future<LibraryPresentationDetail> presentation(String id) => apiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>('/library/presentations/$id');
+        return LibraryPresentationDetail.fromJson(res.data!);
       });
 }

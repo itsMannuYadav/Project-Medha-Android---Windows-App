@@ -11,10 +11,12 @@ import '../../core/widgets/avatar_initials.dart';
 import '../../core/widgets/medha_card.dart';
 import '../../core/widgets/medha_icon.dart';
 import '../../core/widgets/notification_bell.dart';
-import '../homework/homework_screen.dart';
+import '../fees/fees_screen.dart';
 import '../library/library_screen.dart';
 import '../notes/notes_screen.dart';
 import '../practice/practice_screen.dart';
+import '../report_card/report_card_screen.dart';
+import '../voice/voice_chat_panel.dart';
 
 enum _TurnKind { student, assistant }
 
@@ -210,9 +212,32 @@ class _TutorScreenState extends State<TutorScreen> {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => PracticeScreen(chapterId: chapter.id, chapterTitle: chapter.title)));
   }
 
-  void _openHomework() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HomeworkScreen()));
-
   void _openLibrary() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LibraryScreen()));
+
+  void _openFees() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FeesScreen()));
+
+  void _openReport() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReportCardScreen()));
+
+  Future<void> _openVoice() async {
+    if (_sessionId == null) {
+      // need a chapter to create session first
+      final chapter = _selectedChapter;
+      final subject = _selectedSubject;
+      if (chapter == null || subject == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('पहले विषय व अध्याय चुनें')));
+        return;
+      }
+      try {
+        final s = await TutorApi.createSession(subjectId: subject.id, chapterId: chapter.id);
+        _sessionId = s.id;
+      } catch (_) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('सत्र शुरू नहीं हुआ')));
+        return;
+      }
+    }
+    if (!mounted) return;
+    await VoiceChatPanel.open(context, sessionId: _sessionId!, kind: VoiceConverseKind.tutor);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -238,9 +263,16 @@ class _TutorScreenState extends State<TutorScreen> {
                   Expanded(
                     child: inChat
                         ? _ChatThread(scroll: _scroll, turns: _turns)
-                        : _EmptyState(onNotes: _openNotes, onPractice: _openPractice, onHomework: _openHomework, onLibrary: _openLibrary),
+                        : _EmptyState(
+                            onNotes: _openNotes,
+                            onPractice: _openPractice,
+                            onFees: _openFees,
+                            onReport: _openReport,
+                            onLibrary: _openLibrary,
+                            onVoice: _openVoice,
+                          ),
                   ),
-                  _Composer(controller: _composer, busy: _sending, onSend: _ask),
+                  _Composer(controller: _composer, busy: _sending, onSend: _ask, onMic: () => dictateInto(context, _composer)),
                 ],
               ),
       ),
@@ -367,11 +399,20 @@ class _ContextPill extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onNotes, required this.onPractice, required this.onHomework, required this.onLibrary});
+  const _EmptyState({
+    required this.onNotes,
+    required this.onPractice,
+    required this.onFees,
+    required this.onReport,
+    required this.onLibrary,
+    required this.onVoice,
+  });
   final VoidCallback onNotes;
   final VoidCallback onPractice;
-  final VoidCallback onHomework;
+  final VoidCallback onFees;
+  final VoidCallback onReport;
   final VoidCallback onLibrary;
+  final VoidCallback onVoice;
 
   @override
   Widget build(BuildContext context) {
@@ -385,7 +426,16 @@ class _EmptyState extends StatelessWidget {
           Text('नमस्ते, $name', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: MedhaColors.ink)),
           const SizedBox(height: 4),
           const Text('आज क्या समझना है?', style: TextStyle(fontSize: 14, color: MedhaColors.inkSoft)),
-          const SizedBox(height: 26),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onVoice,
+              icon: const MedhaIcon('mic', size: 16, color: MedhaColors.primary),
+              label: const Text('आवाज़ से पूछें'),
+            ),
+          ),
+          const SizedBox(height: 18),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -396,8 +446,9 @@ class _EmptyState extends StatelessWidget {
             children: [
               _actionCard(icon: 'book', title: 'अध्याय के नोट्स', subtitle: 'सार व मुख्य बिंदु', blue: true, onTap: onNotes),
               _actionCard(icon: 'file_question', title: 'अभ्यास प्रश्न', subtitle: 'खुद जाँचें', blue: false, onTap: onPractice),
-              _actionCard(icon: 'clipboard', title: 'होमवर्क देखें', subtitle: 'दिया गया काम', blue: true, onTap: onHomework),
-              _actionCard(icon: 'book', title: 'ई-लाइब्रेरी', subtitle: 'संसाधन देखें', blue: false, onTap: onLibrary),
+              _actionCard(icon: 'receipt', title: 'फीस', subtitle: 'भुगतान इतिहास', blue: true, onTap: onFees),
+              _actionCard(icon: 'report', title: 'रिपोर्ट कार्ड', subtitle: 'सत्र के अंक', blue: false, onTap: onReport),
+              _actionCard(icon: 'book', title: 'ई-लाइब्रेरी', subtitle: 'संसाधन देखें', blue: true, onTap: onLibrary),
             ],
           ),
         ],
@@ -482,10 +533,11 @@ class _ChatThread extends StatelessWidget {
 }
 
 class _Composer extends StatelessWidget {
-  const _Composer({required this.controller, required this.busy, required this.onSend});
+  const _Composer({required this.controller, required this.busy, required this.onSend, this.onMic});
   final TextEditingController controller;
   final bool busy;
   final ValueChanged<String> onSend;
+  final VoidCallback? onMic;
 
   @override
   Widget build(BuildContext context) {
@@ -507,6 +559,10 @@ class _Composer extends StatelessWidget {
                 style: const TextStyle(fontSize: 13.5),
                 decoration: const InputDecoration(filled: false, border: InputBorder.none, hintText: 'अपना सवाल यहाँ लिखें…', isDense: true),
               ),
+            ),
+            IconButton(
+              icon: const MedhaIcon('mic', size: 18, color: MedhaColors.inkSoft),
+              onPressed: busy ? null : onMic,
             ),
             Container(
               width: 36,
