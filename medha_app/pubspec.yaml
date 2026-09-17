@@ -1,0 +1,78 @@
+name: medha_app
+description: Medha – Bihar Education App for students, teachers, and principals.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Navigation
+  go_router: ^14.2.7
+
+  # HTTP client
+  dio: ^5.4.3+1
+  # Persists the httpOnly refresh-token cookie /auth/refresh depends on
+  # (native Dio, unlike a browser, does not manage cookies on its own).
+  dio_cookie_manager: ^3.1.1
+  cookie_jar: ^4.0.8
+
+  # Secure storage (tokens)
+  flutter_secure_storage: ^9.2.2
+
+  # Local preferences
+  shared_preferences: ^2.3.2
+
+  # Fonts
+  google_fonts: ^6.2.1
+
+  # Markdown rendering
+  flutter_markdown: ^0.7.3
+
+  # Notifications — not yet used in code; kept because FCM will need it and it
+  # is why android/app/build.gradle.kts enables core library desugaring.
+  flutter_local_notifications: ^17.2.4
+
+  # Animations
+  flutter_animate: ^4.5.0
+
+  # URL launcher (PDFs, links)
+  url_launcher: ^6.3.0
+
+  # Intl / dates
+  intl: ^0.19.0
+
+  # Icons
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter_launcher_icons:
+  image_path: "assets/images/app_icon.png"
+  android: "launcher_icon"
+  ios: true
+  remove_alpha_ios: true
+  windows:
+    generate: true
+    icon_size: 256
+  adaptive_icon_background: "#F8F4ED"
+  adaptive_icon_foreground: "assets/images/app_icon.png"
+
+flutter:
+  uses-material-design: true
+
+  # app_icon.png is deliberately NOT listed: flutter_launcher_icons consumes it
+  # at build time, so bundling it would add ~1.7MB to the APK for nothing.
+  assets:
+    - assets/images/logo.jpg
+    - assets/images/background.png
